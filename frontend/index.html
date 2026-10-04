@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetMeter — Local Subnet Data Usage Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="glow-sphere sphere-1"></div>
+    <div class="glow-sphere sphere-2"></div>
+
+    <div class="app-container">
+        <!-- Top Navigation -->
+        <header class="navbar">
+            <div class="nav-brand">
+                <div class="brand-radar">
+                    <span class="radar-sweep"></span>
+                    <span class="radar-dot"></span>
+                </div>
+                <div class="brand-text">
+                    <div class="brand-title">NetMeter <span class="badge-tag">v1.0</span></div>
+                    <div class="brand-subtitle">Per-Device Subnet Bandwidth & Traffic Sentinel</div>
+                </div>
+            </div>
+
+            <div class="nav-status-group">
+                <div class="status-pill" id="subnetPill">
+                    <span class="pill-icon">🌐</span>
+                    <span class="pill-label">Subnet:</span>
+                    <strong id="subnetText">Detecting...</strong>
+                </div>
+
+                <div class="status-pill sniffer-pill" id="enginePill">
+                    <span class="pulse-indicator" id="engineDot"></span>
+                    <span id="engineMode">Engine: Starting</span>
+                    <button id="toggleSimBtn" class="btn-micro" title="Toggle Simulation / Live Sniffing Mode">
+                        ⚡ Toggle Demo Mode
+                    </button>
+                </div>
+
+                <div class="status-pill ws-pill" id="wsPill">
+                    <span class="pulse-indicator pulse-green" id="wsDot"></span>
+                    <span id="wsStatus">Live Stream</span>
+                </div>
+
+                <button id="scanAirFiberBtn" class="btn-action-primary" title="Actively probe and sweep subnet to find all connected AirFiber devices">
+                    🔍 Scan AirFiber Devices
+                </button>
+
+                <button id="addDeviceBtn" class="btn-action-secondary" title="Manually add a known device IP/name">
+                    ➕ Add Device
+                </button>
+            </div>
+        </header>
+
+        <!-- Metric KPI Cards -->
+        <section class="kpi-grid">
+            <div class="kpi-card card-download">
+                <div class="kpi-header">
+                    <div class="kpi-icon-wrap icon-down">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v14M5 10l7 7 7-7M5 21h14"/></svg>
+                    </div>
+                    <span class="kpi-title">Total Subnet Download</span>
+                </div>
+                <div class="kpi-body">
+                    <div class="kpi-value-row">
+                        <span class="kpi-primary-val" id="totalDownloadVal">0.00</span>
+                        <span class="kpi-unit" id="totalDownloadUnit">MB</span>
+                    </div>
+                    <div class="kpi-subtext" id="totalDownloadSub">0 Packets Processed</div>
+                </div>
+                <div class="kpi-bar-track">
+                    <div class="kpi-bar-fill fill-cyan" id="kpiDownBar" style="width: 50%;"></div>
+                </div>
+            </div>
+
+            <div class="kpi-card card-upload">
+                <div class="kpi-header">
+                    <div class="kpi-icon-wrap icon-up">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21V7M5 14l7-7 7 7M5 3h14"/></svg>
+                    </div>
+                    <span class="kpi-title">Total Subnet Upload</span>
+                </div>
+                <div class="kpi-body">
+                    <div class="kpi-value-row">
+                        <span class="kpi-primary-val" id="totalUploadVal">0.00</span>
+                        <span class="kpi-unit" id="totalUploadUnit">MB</span>
+                    </div>
+                    <div class="kpi-subtext" id="totalUploadSub">0 Packets Processed</div>
+                </div>
+                <div class="kpi-bar-track">
+                    <div class="kpi-bar-fill fill-emerald" id="kpiUpBar" style="width: 50%;"></div>
+                </div>
+            </div>
+
+            <div class="kpi-card card-speed">
+                <div class="kpi-header">
+                    <div class="kpi-icon-wrap icon-speed">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    </div>
+                    <span class="kpi-title">Current Live Throughput</span>
+                </div>
+                <div class="kpi-body">
+                    <div class="kpi-value-row">
+                        <span class="kpi-primary-val" id="liveThroughputVal">0.00</span>
+                        <span class="kpi-unit" id="liveThroughputUnit">KB/s</span>
+                    </div>
+                    <div class="speed-splits">
+                        <span class="speed-split down">↓ <span id="liveDownSpeed">0.0</span> KB/s</span>
+                        <span class="speed-split up">↑ <span id="liveUpSpeed">0.0</span> KB/s</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card card-devices">
+                <div class="kpi-header">
+                    <div class="kpi-icon-wrap icon-devices">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                    </div>
+                    <span class="kpi-title">Connected Devices</span>
+                </div>
+                <div class="kpi-body">
+                    <div class="kpi-value-row">
+                        <span class="kpi-primary-val" id="activeDevCount">0</span>
+                        <span class="kpi-unit-slash">/ <span id="totalDevCount">0</span> Online</span>
+                    </div>
+                    <div class="kpi-subtext" id="monitoringSince">Tracking active ARP entries</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live Throughput Canvas Chart Section -->
+        <section class="chart-section glass-panel">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    <h2 class="panel-title">Real-Time Network Activity Stream</h2>
+                    <span class="panel-subtitle">Rolling live bandwidth transmission rate (last 60 seconds)</span>
+                </div>
+                <div class="chart-legend">
+                    <span class="legend-item"><span class="legend-dot dot-cyan"></span> Download (Inbound)</span>
+                    <span class="legend-item"><span class="legend-dot dot-emerald"></span> Upload (Outbound)</span>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="liveChart" width="1100" height="180"></canvas>
+            </div>
+        </section>
+
+        <!-- Filter & Search Controls -->
+        <section class="table-controls-row">
+            <div class="search-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="text" id="deviceSearch" placeholder="Search by IP, nickname, MAC, or hardware vendor...">
+            </div>
+
+            <div class="filter-group">
+                <button class="filter-btn active" data-filter="all">All Devices (<span id="countFilterAll">0</span>)</button>
+                <button class="filter-btn" data-filter="active">Active Only (<span id="countFilterActive">0</span>)</button>
+                <button class="filter-btn" data-filter="heavy">Heavy Talkers (>50MB)</button>
+            </div>
+
+            <div class="sort-group">
+                <label for="sortSelect">Sort By:</label>
+                <select id="sortSelect" class="custom-select">
+                    <option value="total_bytes_desc">Highest Total Usage</option>
+                    <option value="speed_desc">Highest Live Speed</option>
+                    <option value="bytes_in_desc">Highest Download</option>
+                    <option value="bytes_out_desc">Highest Upload</option>
+                    <option value="ip_asc">IP Address</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Devices Table Section -->
+        <section class="table-section glass-panel">
+            <div class="table-responsive">
+                <table class="device-table" id="deviceTable">
+                    <thead>
+                        <tr>
+                            <th class="col-status">Status</th>
+                            <th class="col-device">Device & Custom Nickname</th>
+                            <th class="col-ip">IP Address</th>
+                            <th class="col-mac">MAC / Hardware</th>
+                            <th class="col-speed">Live Speed</th>
+                            <th class="col-usage">Download (MB / GB)</th>
+                            <th class="col-usage">Upload (MB / GB)</th>
+                            <th class="col-total">Total Data Transferred</th>
+                            <th class="col-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deviceTableBody">
+                        <!-- Dynamic Rows Injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <div class="empty-icon">🔍</div>
+                <div class="empty-title">No matching devices found</div>
+                <div class="empty-desc">Check your search query or verify your subnet sniffing interface.</div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Device Detail & Inspection Modal -->
+    <div class="modal-backdrop" id="deviceModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-pretitle">Device Deep Inspection</div>
+                    <h3 class="modal-title" id="modalDeviceName">Device Inspection</h3>
+                    <span class="modal-ip-badge" id="modalDeviceIP">192.168.1.x</span>
+                </div>
+                <button class="modal-close-btn" id="closeModalBtn">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Inline Nickname Edit inside modal -->
+                <div class="modal-edit-box">
+                    <label for="modalNicknameInput">Edit Custom Device Nickname:</label>
+                    <div class="edit-input-group">
+                        <input type="text" id="modalNicknameInput" placeholder="e.g. Living Room TV, Work Laptop, Dad's Phone">
+                        <button class="btn-primary" id="modalSaveNameBtn">Save Nickname</button>
+                    </div>
+                </div>
+
+                <!-- Hardware & Identity details -->
+                <div class="modal-spec-grid">
+                    <div class="spec-item">
+                        <span class="spec-label">MAC Address</span>
+                        <span class="spec-val mono" id="modalMac">-</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Hardware Manufacturer</span>
+                        <span class="spec-val" id="modalVendor">-</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Network Hostname</span>
+                        <span class="spec-val" id="modalHostname">-</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">First Seen</span>
+                        <span class="spec-val" id="modalFirstSeen">-</span>
+                    </div>
+                </div>
+
+                <!-- Protocols Breakdown -->
+                <div class="modal-section-title">Protocol Distribution</div>
+                <div class="protocol-list" id="modalProtocolList">
+                    <!-- Injected by JS -->
+                </div>
+
+                <!-- Usage Totals -->
+                <div class="modal-usage-summary">
+                    <div class="usage-tile tile-in">
+                        <span class="tile-label">Total Inbound</span>
+                        <span class="tile-val" id="modalUsageIn">0 MB</span>
+                    </div>
+                    <div class="usage-tile tile-out">
+                        <span class="tile-label">Total Outbound</span>
+                        <span class="tile-val" id="modalUsageOut">0 MB</span>
+                    </div>
+                    <div class="usage-tile tile-sum">
+                        <span class="tile-label">Combined Total</span>
+                        <span class="tile-val" id="modalUsageSum">0 MB</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Inline Rename Modal (when clicking pencil in table) -->
+    <div class="modal-backdrop" id="inlineRenameModal">
+        <div class="modal-card modal-compact">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Device Nickname</h3>
+                <button class="modal-close-btn" id="closeInlineRenameBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-tip">Assign a friendly custom name for <strong id="inlineRenameIP"></strong>:</p>
+                <div class="edit-input-group" style="margin-top: 14px;">
+                    <input type="text" id="inlineRenameInput" placeholder="e.g. Master Bedroom TV, Smart Hub">
+                    <button class="btn-primary" id="saveInlineRenameBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Device Modal -->
+    <div class="modal-backdrop" id="addDeviceModal">
+        <div class="modal-card modal-compact">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-pretitle">Manual Device Registration</div>
+                    <h3 class="modal-title">Add AirFiber Connected Device</h3>
+                </div>
+                <button class="modal-close-btn" id="closeAddDeviceBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-tip">Add any device connected to your AirFiber router (IP will be tracked immediately):</p>
+                <div class="form-field-group" style="margin-top: 14px;">
+                    <label for="newDeviceIP">Device IP Address *</label>
+                    <input type="text" id="newDeviceIP" placeholder="e.g. 192.168.1.50" class="input-modern">
+                </div>
+                <div class="form-field-group" style="margin-top: 10px;">
+                    <label for="newDeviceName">Custom Nickname</label>
+                    <input type="text" id="newDeviceName" placeholder="e.g. Living Room TV, Smart Refrigerator" class="input-modern">
+                </div>
+                <div class="form-field-group" style="margin-top: 10px;">
+                    <label for="newDeviceVendor">Device Type / Brand</label>
+                    <input type="text" id="newDeviceVendor" placeholder="e.g. Samsung Smart TV, Sony PlayStation 5" class="input-modern">
+                </div>
+                <button class="btn-primary" id="saveNewDeviceBtn" style="width: 100%; margin-top: 18px;">
+                    Register Device
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Alerts -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
